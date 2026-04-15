@@ -14,6 +14,46 @@ public static class SexyObjMgr
 
 private static readonly StringComparer comparer = StringComparer.Ordinal;
 
+// Load obj table
+
+private static SexyObjTable LoadTable(string inputPath)
+{
+TraceLogger.WriteActionStart("Loading table...");
+var srcTable = SexyObjTable.Read(inputPath);
+
+TraceLogger.WriteActionEnd();
+
+if(srcTable is null)
+throw new Exception("Failed to load table");
+
+var objCount = srcTable.Objects.Count;
+TraceLogger.WriteInfo($"Objects loaded: {objCount}");
+
+return srcTable;
+}
+
+// Load tables
+
+private static void LoadTables(string pathA, string pathB,
+                               out SexyObjTable tableA,
+                               out SexyObjTable tableB)
+{
+TraceLogger.WriteActionStart("Loading tables...");
+
+tableA = SexyObjTable.Read(pathA);
+tableB = SexyObjTable.Read(pathB);
+
+TraceLogger.WriteActionEnd();
+
+if(tableA is null || tableB is null)
+throw new Exception("Failed to load tables");
+
+var objCountA = tableA.Objects.Count;
+var objCountB = tableB.Objects.Count;
+
+TraceLogger.WriteInfo($"Objects loaded: {objCountA} (old) - {objCountB} (new)");
+}
+
 #region ==============  SORTER   ==============
 
 // Sort by Alias
@@ -63,10 +103,11 @@ private static void SortProps(List<SexyObj> objs)
 foreach(var o in objs)
 {
 
-if (o.ObjData is not IDictionary<string, object> dict)
+if(o.ObjData is not IDictionary<string, object> dict)
 continue;
 
-var sortedDict = dict.OrderBy(p => p.Key, comparer).ToDictionary(p => p.Key, p => p.Value);
+var sorted = dict.OrderBy(p => p.Key, comparer);
+var sortedDict = sorted.ToDictionary(p => p.Key, p => p.Value);
 
 o.ObjData = ExpandObjPlugin.ToExpandoObject(sortedDict);   
 }
@@ -101,12 +142,9 @@ try
 string propsFlags = sortProperties ? "- Properties sort" : "";
 TraceLogger.WriteDebug($"{inputPath} ({criteria} {propsFlags})");
 
-TraceLogger.WriteActionStart("Loading table...");
-var srcTable = SexyObjTable.Read(inputPath);
+var srcTable = LoadTable(inputPath);
 
-TraceLogger.WriteActionEnd();
-
-TraceLogger.WriteActionStart("Sorting table...");
+TraceLogger.WriteActionStart("Sorting objects..");
 Sort(srcTable, criteria, sortProperties);
 
 TraceLogger.WriteActionEnd();
@@ -178,12 +216,7 @@ try
 {
 TraceLogger.WriteDebug($"{oldPath} vs. {newPath} (Mode: {compareMode} - {diffCriteria})");
 
-TraceLogger.WriteActionStart("Loading tables...");
-
-var tableA = SexyObjTable.Read(oldPath);
-var tableB = SexyObjTable.Read(newPath);
-
-TraceLogger.WriteActionEnd();
+LoadTables(oldPath, newPath, out var tableA, out var tableB);
 
 TraceLogger.WriteActionStart("Comparing tables...");
 Compare(tableA, tableB, compareMode, diffCriteria, out var oldDiff, out var newDiff);
@@ -290,12 +323,7 @@ try
 {
 TraceLogger.WriteDebug($"{oldPath} vs. {newPath}");
 
-TraceLogger.WriteActionStart("Loading tables...");
-
-var oldTable = SexyObjTable.Read(oldPath);
-var newTable = SexyObjTable.Read(newPath);
-
-TraceLogger.WriteActionEnd();
+LoadTables(oldPath, newPath, out var oldTable, out var newTable);
 
 TraceLogger.WriteActionStart("Updating table...");
 Update(oldTable, newTable);
@@ -352,10 +380,7 @@ PathHelper.ChangeExtension(ref outDir, ".split_obj");
 
 TraceLogger.WriteDebug($"{inputPath} --> {outDir}");
 
-TraceLogger.WriteActionStart("Loading table...");
-var srcTable = SexyObjTable.Read(inputPath);
-
-TraceLogger.WriteActionEnd();
+var srcTable = LoadTable(inputPath);
 
 if(srcTable.Objects.Count == 0) 
 {
