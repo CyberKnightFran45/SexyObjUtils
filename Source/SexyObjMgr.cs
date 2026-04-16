@@ -223,6 +223,11 @@ Compare(tableA, tableB, compareMode, diffCriteria, out var oldDiff, out var newD
 
 TraceLogger.WriteActionEnd();
 
+int objsAdded = newDiff.Objects.Count;
+int objsRemoved = oldDiff is null ? 0 : oldDiff.Objects.Count;
+
+TraceLogger.WriteInfo($"Objects added: {objsAdded} | Objects removed: {objsRemoved}");
+
 TraceLogger.WriteActionStart("Saving diff...");
 
 if(oldDiff != null)
