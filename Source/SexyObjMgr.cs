@@ -262,24 +262,31 @@ TraceLogger.WriteLine("SexyObjTable Comparison Finished");
 
 // Add Missing Props to Obj
 
-private static void AddMissingProps(ExpandoObject existing, ExpandoObject updated)
+private static int AddMissingProps(ExpandoObject existing, ExpandoObject updated)
 {
 
 
 if(existing is not IDictionary<string, object> existingDict ||
    updated is not IDictionary<string, object> newDict)
 {
-return;
+return 0;
 }
+
+int propsAdded = 0;
 
 foreach(var prop in newDict)
 {
 
 if(!existingDict.ContainsKey(prop.Key) )
+{
 existingDict[prop.Key] = prop.Value;
+
+propsAdded++;
+}
 
 }
 
+return propsAdded;
 }
 
 // Old obj filter
@@ -295,20 +302,24 @@ return SexyObjComparer.HasSameAliases(oldObj, newObj);
 
 // Update table
 
-public static void Update(SexyObjTable oldTable, SexyObjTable newTable)
+public static void Update(SexyObjTable oldTable, SexyObjTable newTable,
+                          out int objsAdded, out int propsAdded)
 {
+objsAdded = 0;
+propsAdded = 0;
 
 if(SexyObjHelper.IsNullOrEmpty(oldTable) )
 return;
 
 var diff = SexyObjComparer.FullDiff(oldTable, newTable, SexyObjDiffCriteria.AddedProps);
+objsAdded = diff.Objects.Count;
 
 foreach(var newObj in diff.Objects)
 {
 var existingObj = oldTable.Objects.FirstOrDefault(o => OldContentFilter(o, newObj) );
 
 if(existingObj != null)
-AddMissingProps(existingObj.ObjData, newObj.ObjData);
+propsAdded += AddMissingProps(existingObj.ObjData, newObj.ObjData);
 
 else
 oldTable.Objects.Add(newObj);
@@ -331,9 +342,11 @@ TraceLogger.WriteDebug($"{oldPath} vs. {newPath}");
 LoadTables(oldPath, newPath, out var oldTable, out var newTable);
 
 TraceLogger.WriteActionStart("Updating table...");
-Update(oldTable, newTable);
+Update(oldTable, newTable, out int objsAdded, out int propsAdded);
 
 TraceLogger.WriteActionEnd();
+
+TraceLogger.WriteInfo($"New objects: {objsAdded} | New properties: {propsAdded}");
 
 string outPath = SexyObjHelper.BuildPath(oldPath, "updated");
 
